@@ -1,0 +1,21 @@
+# ToMogo-QT 量化选股研究台依赖
+# Python 3.10+，需先 brew install ta-lib（提供 TA-Lib C 库）
+
+flask>=3.0
+pandas>=2.2,<3
+numpy>=2
+polars>=1.26
+scipy>=1.15
+scikit-learn>=1.6
+lightgbm>=4.6
+pyarrow>=19
+ta-lib>=0.6
+loguru>=0.7
+tqdm>=4.67
+nbformat>=5.10
+plotly>=6.0
+matplotlib>=3.10
+alphalens-reloaded>=0.4.5
+baostock>=0.8
+tzlocal>=5.3
+torch>=2.6        # GNN 波动率风险叠加层（macOS arm64 自带 CPU/MPS，无需 torch_geometric）

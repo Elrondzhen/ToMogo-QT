@@ -1,0 +1,1 @@
+python C:\veighna_studio\Tools\i18n\pygettext.py -o tomogoqt\trader\locale\tomogoqt.pot tomogoqt\trader\*.py tomogoqt\trader\ui\*.py

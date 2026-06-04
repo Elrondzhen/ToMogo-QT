@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ToMogo-QT 量化选股研究台</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0f1419; color: #e6e6e6; line-height: 1.6;
+    padding: 24px; max-width: 1080px; margin: 0 auto;
+  }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .subtitle { color: #8a9099; font-size: 13px; margin-bottom: 16px; }
+  .disclaimer {
+    background: #2a1f0a; border: 1px solid #7a5c14; color: #f0c674;
+    padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 20px;
+  }
+  .disclaimer strong { color: #ffd479; }
+  .panel {
+    background: #1a1f26; border: 1px solid #2a323d; border-radius: 10px;
+    padding: 20px; margin-bottom: 20px;
+  }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  button {
+    background: #2563eb; color: #fff; border: none; padding: 10px 20px;
+    border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600;
+  }
+  button:hover { background: #1d4ed8; }
+  button:disabled { background: #3a4250; cursor: not-allowed; }
+  .status { font-size: 13px; color: #8a9099; }
+  .status.active { color: #4ade80; }
+  .status.error { color: #f87171; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .card {
+    background: #1a1f26; border: 1px solid #2a323d; border-radius: 10px;
+    padding: 18px; position: relative;
+  }
+  .card .rank {
+    position: absolute; top: -10px; left: -10px; width: 30px; height: 30px;
+    background: #2563eb; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 14px;
+  }
+  .card h3 { font-size: 18px; margin-bottom: 2px; }
+  .card .code { color: #8a9099; font-size: 12px; margin-bottom: 12px; }
+  .price { font-size: 28px; font-weight: 700; color: #4ade80; margin-bottom: 12px; }
+  .price small { font-size: 13px; color: #8a9099; font-weight: 400; }
+  .order-price {
+    background: #14241a; border: 1px solid #2a4a35; border-radius: 6px;
+    padding: 8px 10px; margin-bottom: 12px; font-size: 13px; color: #a7d9b8;
+  }
+  .order-price strong { color: #4ade80; font-size: 16px; }
+  .order-price small { color: #6b9078; font-size: 11px; }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .metric { background: #0f1419; border-radius: 6px; padding: 8px; text-align: center; }
+  .metric .label { font-size: 11px; color: #8a9099; }
+  .metric .val { font-size: 15px; font-weight: 600; }
+  .metric .val.neg { color: #f87171; }
+  .hold {
+    background: #0f1419; border-radius: 6px; padding: 10px; text-align: center;
+    font-size: 13px;
+  }
+  .hold .days { font-size: 20px; font-weight: 700; color: #60a5fa; }
+  .hold .note { font-size: 11px; color: #8a9099; }
+  .signal { font-size: 12px; color: #8a9099; margin-top: 8px; text-align: right; }
+  .foot { font-size: 12px; color: #6b7280; margin-top: 8px; }
+  .empty { color: #8a9099; text-align: center; padding: 40px; }
+  table.hold-input { width: 100%; border-collapse: collapse; }
+  table.hold-input th { text-align: left; font-size: 12px; color: #8a9099; padding: 6px 8px; font-weight: 500; }
+  table.hold-input td { padding: 4px 8px; }
+  table.hold-input input {
+    width: 100%; background: #0f1419; border: 1px solid #2a323d; color: #e6e6e6;
+    padding: 8px 10px; border-radius: 6px; font-size: 14px;
+  }
+  table.hold-input .del { background: #3a2222; color: #f87171; padding: 6px 12px; font-size: 13px; }
+  .eval-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }
+  .eval-table th, .eval-table td { padding: 10px 12px; text-align: center; border-bottom: 1px solid #2a323d; }
+  .eval-table th { color: #8a9099; font-size: 12px; font-weight: 500; background: #1a1f26; }
+  .eval-table td.left { text-align: left; }
+  .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .badge.加仓 { background: #14331f; color: #4ade80; }
+  .badge.持仓 { background: #1a2942; color: #60a5fa; }
+  .badge.减仓 { background: #3a2f0a; color: #f0c674; }
+  .badge.无法评估, .badge.输入无效 { background: #2a323d; color: #8a9099; }
+  .pos { color: #4ade80; } .neg { color: #f87171; }
+  .reason { font-size: 12px; color: #8a9099; text-align: left; }
+  /* 风险层：市场 regime 横幅 + 个股风险档 + 池外外推标注 */
+  .regime-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px;
+    border: 1px solid #2a323d;
+  }
+  .regime-bar .rg-badge { padding: 3px 12px; border-radius: 12px; font-weight: 700; font-size: 13px; }
+  .regime-bar.calm   { background: #0f2418; } .regime-bar.calm   .rg-badge { background: #14331f; color: #4ade80; }
+  .regime-bar.normal { background: #0f1c2e; } .regime-bar.normal .rg-badge { background: #1a2942; color: #60a5fa; }
+  .regime-bar.stress { background: #2e1212; } .regime-bar.stress .rg-badge { background: #4a1f1f; color: #f87171; }
+  .regime-bar.unknown{ background: #1a1f26; } .regime-bar.unknown.rg-badge { background: #2a323d; color: #8a9099; }
+  .regime-bar .rg-msg { color: #b6bcc6; }
+  .risk { padding: 2px 9px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .risk.低 { background: #14331f; color: #4ade80; }
+  .risk.中 { background: #3a2f0a; color: #f0c674; }
+  .risk.高 { background: #4a1f1f; color: #f87171; }
+  .vol-src { font-size: 10px; color: #6b7280; }
+  .tag-ext { background: #2a1f3a; color: #c4a7e7; padding: 1px 7px; border-radius: 8px; font-size: 10px; margin-left: 6px; }
+  .tag-gated { color: #f0c674; font-size: 10px; }
+  /* 录入时名称检索校验 */
+  .name-hint { font-size: 12px; padding: 2px 4px; white-space: nowrap; }
+  .name-hint.ok { color: #60a5fa; }
+  .name-hint.unknown { color: #f0c674; }
+</style>
+</head>
+<body>
+<h1>ToMogo-QT 量化选股研究台</h1>
+<div class="subtitle">Alpha158 因子 + LightGBM 排名 · GNN 前向波动率风险叠加 · 基于沪深300成分股真实日线</div>
+
+<div class="disclaimer">
+  <strong>研究演示声明：</strong>本工具为机器学习多因子选股的<strong>研究演示</strong>，所有输出<strong>不构成任何投资建议</strong>。
+  推荐基于模型因子打分排名；"建议持有天数"基于 <strong>2/5/10/20 天多视野模型</strong>的<strong>日均收益估计</strong>（带滞后切换以稳定天数，超出策略轮动周期会标注）；
+  "建议出手价"按个股<strong>ATR(真实波幅)</strong>结合排名紧迫度与近20日支撑/阻力推算（波动越大挂单越远），是<strong>限价挂单参考</strong>，<strong>非估值买卖点</strong>。
+  当前为<strong>全量训练模式</strong>（模型学习了近乎全部历史以使推荐更贴近当下），<strong>因此已失去诚实的样本外回测能力</strong>，任何回测业绩都会因模型见过数据而虚高。
+  数据集为 116 只沪深300成分股（受数据源限流，非全量），存在样本偏差。请勿据此进行实盘交易。
+</div>
+
+<div class="panel">
+  <div class="row">
+    <button id="retrainBtn" onclick="retrain()">数据回训（更新模型）</button>
+    <span id="status" class="status">就绪</span>
+  </div>
+  <div class="foot">点击后将用 baostock 增量抓取最新行情 → 重算 Alpha158 因子 → 重训 5 个 LightGBM 模型（1 排名 + 4 视野），耗时约 6-9 分钟。</div>
+</div>
+
+<h2 style="font-size:18px;margin-bottom:12px;">当日推荐 Top3 <span id="asOf" class="subtitle"></span></h2>
+<div id="cards" class="cards">
+  <div class="empty">加载中...</div>
+</div>
+
+<h2 style="font-size:18px;margin:28px 0 12px;">我的持仓评估</h2>
+<div class="panel">
+  <div class="foot" style="margin-bottom:12px;">
+    录入你的持仓（股票代码、买入价、股数）。增减建议<strong style="color:#f0c674;">仅来自模型因子排名</strong>，
+    买入价与股数仅用于计算盈亏展示，<strong style="color:#f0c674;">不影响建议</strong>。
+    池内 116 只为<strong style="color:#60a5fa;">模型直接打分</strong>；其余 A 股按需抓取后<strong style="color:#c4a7e7;">外推估计</strong>排名（标"外推"）。
+    叠加 <strong style="color:#4ade80;">GNN 前向波动率</strong>给出风险档，仅在市场高波动时用于控险（收紧加仓），<strong style="color:#f0c674;">不预测涨跌方向</strong>。
+  </div>
+  <table id="holdTable" class="hold-input">
+    <thead>
+      <tr><th>股票代码</th><th>名称</th><th>买入价(元)</th><th>持有股数</th><th></th></tr>
+    </thead>
+    <tbody id="holdRows"></tbody>
+  </table>
+  <div class="row" style="margin-top:12px;">
+    <button onclick="addRow()" style="background:#3a4250;">+ 添加一行</button>
+    <button id="evalBtn" onclick="evaluateHoldings()">模型评估持仓</button>
+    <span id="evalStatus" class="status"></span>
+  </div>
+</div>
+<div id="evalResult"></div>
+
+<script>
+// 全局错误兜底：任何未捕获的 JS 错误/Promise 异常都顶部红条显示，便于定位"点了没反应"
+window.__BUILD__ = 'risk-overlay-2';
+function __showErr(msg) {
+  let bar = document.getElementById('globalErr');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'globalErr';
+    bar.style = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fff;padding:8px 14px;font-size:13px;';
+    document.body.appendChild(bar);
+  }
+  bar.textContent = 'JS错误: ' + msg + '（构建 ' + window.__BUILD__ + '）';
+}
+window.addEventListener('error', e => {
+  // 过滤浏览器扩展注入脚本的噪声：本项目代码不含 document.evaluate / XPath 调用
+  const stack = (e.error && e.error.stack) || '';
+  if (/-extension:\/\//.test(stack)) return;                       // chrome-/moz-extension 注入
+  if (/'evaluate' on 'Document'/.test(e.message || '')) return;    // 已知扩展 XPath 噪声
+  __showErr(e.message + ' @ ' + (e.filename||'') + ':' + (e.lineno||''));
+});
+window.addEventListener('unhandledrejection', e => __showErr('Promise: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)));
+
+function fmt(v, suffix) {
+  if (v === null || v === undefined) return '—';
+  return v + (suffix || '');
+}
+
+function escAttr(s) {
+  return String(s || '').replace(/"/g, '&quot;');
+}
+
+// 多视野持有天数展示块（推荐卡与持仓评估表共用）
+function holdBlock(it) {
+  if (it.hold_lower === null || it.hold_lower === undefined) {
+    return `<div class="hold"><span class="days">—</span><div class="note">${it.hold_basis || '无持有天数预测'}</div></div>`;
+  }
+  const daysTxt = (it.hold_lower === it.hold_upper) ? `${it.hold_lower}` : `${it.hold_lower}~${it.hold_upper}`;
+  let note, daysCls = 'days';
+  if (it.hold_bearish) {
+    note = '<span style="color:#f87171;">模型看跌，建议尽快离场</span>';
+  } else {
+    const bestTxt = (it.hold_best !== null && it.hold_best !== undefined) ? `（最优≈${it.hold_best}天）` : '';
+    note = `多视野模型日均收益估计${bestTxt}`;
+  }
+  const extra = it.hold_over_rotation
+    ? `<div class="note" style="color:#f0c674;">超出策略轮动周期(~10天)，与策略节奏不一致</div>` : '';
+  return `<div class="hold" title="${escAttr(it.hold_basis)}">
+    建议持有 <span class="${daysCls}">${daysTxt}</span> 天
+    <div class="note">${note}</div>
+    ${extra}
+  </div>`;
+}
+
+function renderCards(data) {
+  const box = document.getElementById('cards');
+  document.getElementById('asOf').textContent = data.as_of ? '（数据截至 ' + data.as_of + '）' : '';
+
+  if (!data.ok || !data.items || data.items.length === 0) {
+    box.innerHTML = '<div class="empty">' + (data.msg || '暂无推荐，请先点击数据回训。') + '</div>';
+    return;
+  }
+
+  box.innerHTML = data.items.map((it, i) => {
+    const peClass = (it.pe !== null && it.pe < 0) ? 'val neg' : 'val';
+    const priceTxt = it.price !== null ? it.price : '—';
+    return `
+    <div class="card">
+      <div class="rank">${i + 1}</div>
+      <h3>${it.name}</h3>
+      <div class="code">${it.vt_symbol}</div>
+      <div class="price">¥${priceTxt} <small>现价(前复权)</small></div>
+      <div class="order-price" title="${it.order_basis || ''}">建议${it.order_side || '买入'}价 <strong>¥${fmt(it.order_price)}</strong> <small>ATR波动推算${it.atr_pct !== null && it.atr_pct !== undefined ? '(ATR ' + it.atr_pct + '%)' : ''}</small></div>
+      <div class="metrics">
+        <div class="metric"><div class="label">PE(TTM)</div><div class="${peClass}">${fmt(it.pe)}</div></div>
+        <div class="metric"><div class="label">PB(MRQ)</div><div class="val">${fmt(it.pb)}</div></div>
+        <div class="metric"><div class="label">PS(TTM)</div><div class="val">${fmt(it.ps)}</div></div>
+      </div>
+      ${holdBlock(it)}
+      <div class="signal">因子打分 ${it.signal}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadRecommend() {
+  try {
+    const r = await fetch('/api/recommend');
+    renderCards(await r.json());
+  } catch (e) {
+    document.getElementById('cards').innerHTML = '<div class="empty">加载失败：' + e + '</div>';
+  }
+}
+
+function addRow(code, price, vol) {
+  const tb = document.getElementById('holdRows');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="code-in" placeholder="如 600519 或 600519.SSE" value="${code || ''}"></td>
+    <td><span class="name-hint"></span></td>
+    <td><input type="number" step="0.01" placeholder="买入价" value="${price || ''}"></td>
+    <td><input type="number" step="1" placeholder="股数" value="${vol || ''}"></td>
+    <td><button class="del" onclick="this.closest('tr').remove()">删除</button></td>`;
+  tb.appendChild(tr);
+  // 录入即查：归一化代码并查本地名称索引，给出"名称/未知代码"即时反馈
+  const codeIn = tr.querySelector('.code-in');
+  const hint = tr.querySelector('.name-hint');
+  let timer = null;
+  codeIn.addEventListener('input', () => {
+    clearTimeout(timer);
+    const v = codeIn.value.trim();
+    if (!v) { hint.textContent = ''; hint.className = 'name-hint'; return; }
+    timer = setTimeout(() => resolveName(v, hint), 300);
+  });
+  if (code) resolveName(code, hint);
+}
+
+async function resolveName(code, hint) {
+  try {
+    const r = await fetch('/api/resolve?code=' + encodeURIComponent(code));
+    const j = await r.json();
+    if (!j.ok || !j.vt_symbol) { hint.textContent = '无法解析'; hint.className = 'name-hint unknown'; return; }
+    if (j.known) {
+      hint.textContent = j.name;
+      hint.className = 'name-hint ok';
+    } else {
+      hint.textContent = '未知代码';
+      hint.className = 'name-hint unknown';
+    }
+  } catch (e) {
+    hint.textContent = '';
+    hint.className = 'name-hint';
+  }
+}
+
+function fmtPnl(v, pct) {
+  if (v === null || v === undefined) return '—';
+  const cls = v >= 0 ? 'pos' : 'neg';
+  const sign = v >= 0 ? '+' : '';
+  const pctTxt = (pct !== null && pct !== undefined) ? ` (${sign}${pct}%)` : '';
+  return `<span class="${cls}">${sign}${v}${pctTxt}</span>`;
+}
+
+async function evaluateHoldings() {
+  const st = document.getElementById('evalStatus');
+  try {
+    const rows = document.querySelectorAll('#holdRows tr');
+    const holdings = [];
+    rows.forEach(tr => {
+      const ins = tr.querySelectorAll('input');
+      if (ins.length < 3) return;                 // 防御：跳过结构异常行，避免 ins[0] 未定义抛错
+      const code = (ins[0].value || '').trim();
+      if (!code) return;
+      holdings.push({vt_symbol: code, buy_price: ins[1].value, volume: ins[2].value});
+    });
+    if (holdings.length === 0) { st.textContent = '请至少录入一条持仓'; st.className = 'status error'; return; }
+
+    const btn = document.getElementById('evalBtn');
+    btn.disabled = true; st.textContent = '模型评估中...'; st.className = 'status active';
+    try {
+      const r = await fetch('/api/evaluate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({holdings})
+      });
+      renderEval(await r.json());
+      st.textContent = '';
+    } catch (e) {
+      st.textContent = '评估失败：' + e; st.className = 'status error';
+    } finally {
+      btn.disabled = false;
+    }
+  } catch (e) {
+    // 兜底：输入读取/渲染阶段的任何异常都显示出来，不再静默
+    st.textContent = '评估出错：' + (e && e.message ? e.message : e);
+    st.className = 'status error';
+    console.error('evaluateHoldings() 异常', e);
+  }
+}
+
+// 市场 regime 横幅（calm/normal/stress/unknown），向用户说明风险层当前判断
+function regimeBar(data) {
+  const RG = {
+    calm:   {cls: 'calm',   label: '平静'},
+    normal: {cls: 'normal', label: '正常'},
+    stress: {cls: 'stress', label: '高波动'},
+  };
+  const r = RG[data.regime] || {cls: 'unknown', label: '未知'};
+  const msg = data.regime_msg || (data.vol_available ? '' : 'GNN 波动率模型不可用，风险列降级显示');
+  const gateNote = (data.regime === 'stress')
+    ? '　·　高波动状态下，高风险个股的"加仓"将被收紧为"持仓"' : '';
+  return `<div class="regime-bar ${r.cls}">
+    <span>市场状态</span><span class="rg-badge">${r.label}</span>
+    <span class="rg-msg">${msg}${gateNote}</span>
+  </div>`;
+}
+
+function renderEval(data) {
+  const box = document.getElementById('evalResult');
+  if (!data.ok) { box.innerHTML = '<div class="empty">' + (data.msg || '评估失败') + '</div>'; return; }
+  const rows = data.items.map(it => {
+    const adv = it.advice || '—';
+    const rankTxt = it.rank ? `${it.rank}/${it.total_ranked || data.total_ranked}` : '—';
+    // 出手价 hover 同时给出 ATR 推算依据与策略真实离场口径
+    const orderHover = escAttr([it.order_basis, it.strategy_exit_note].filter(Boolean).join('｜'));
+    const orderTxt = (it.order_price !== null && it.order_price !== undefined)
+      ? `${it.order_side} ¥${it.order_price}${it.atr_pct !== null && it.atr_pct !== undefined ? '<br><small style="color:#6b7280;">ATR ' + it.atr_pct + '%</small>' : ''}` : '—';
+    // 持有天数列（多视野模型；不可评估的票无此字段，显示 —）
+    let holdTxt = '—';
+    if (it.hold_lower !== null && it.hold_lower !== undefined) {
+      const d = (it.hold_lower === it.hold_upper) ? `${it.hold_lower}` : `${it.hold_lower}~${it.hold_upper}`;
+      let tag = '';
+      if (it.hold_bearish) tag = '<br><small style="color:#f87171;">看跌·尽快离场</small>';
+      else if (it.hold_over_rotation) tag = '<br><small style="color:#f0c674;">超轮动周期</small>';
+      holdTxt = `<span title="${escAttr(it.hold_basis)}">${d} 天${tag}</span>`;
+    }
+    // 风险列：前向波动率风险档 + 年化波动率 + 来源(GNN直接预测/trailing兜底)
+    let riskTxt = '—';
+    if (it.risk_level) {
+      const srcLabel = it.vol_source === 'gnn' ? 'GNN 预测' : '近期实现';
+      riskTxt = `<span class="risk ${it.risk_level}">${it.risk_level}</span>` +
+        `<br><small class="vol-src">${it.pred_vol_pct ?? '—'}% · ${srcLabel}</small>`;
+    }
+    // 代码列：池外票标"外推"
+    const extTag = it.out_of_universe ? '<span class="tag-ext">外推</span>' : '';
+    // 建议列：被 regime 下调时标注
+    const gatedTag = it.advice_gated ? '<br><small class="tag-gated">已控险下调</small>' : '';
+    return `<tr>
+      <td class="left">${it.vt_symbol}${extTag}</td>
+      <td>${it.buy_price ?? '—'}</td>
+      <td>${it.volume ?? '—'}</td>
+      <td>${it.price ?? '—'}</td>
+      <td>${fmtPnl(it.pnl, it.pnl_pct)}</td>
+      <td>${rankTxt}</td>
+      <td><span class="badge ${adv}">${adv}</span>${gatedTag}</td>
+      <td>${riskTxt}</td>
+      <td>${holdTxt}</td>
+      <td title="${orderHover}">${orderTxt}</td>
+      <td class="reason">${it.reason || ''}</td>
+    </tr>`;
+  }).join('');
+  box.innerHTML = `
+    <div class="panel" style="margin-top:16px;">
+      ${regimeBar(data)}
+      <div class="foot" style="margin-bottom:8px;">数据截至 ${data.as_of}　·　增减建议为基于因子排名的<strong style="color:#f0c674;">启发式</strong>；<strong style="color:#4ade80;">风险档</strong>由 GNN 前向波动率在池内分布的分位定档（相对口径，仅控险不预测涨跌）；持有天数为 <strong style="color:#60a5fa;">2/5/10/20 天多视野模型</strong>日均收益估计；建议出手价按个股<strong style="color:#f0c674;">ATR(真实波幅)</strong>结合排名紧迫度与近20日支撑/阻力推算，<strong style="color:#f0c674;">是研究参考而非策略卖点</strong>（策略真实离场为排名跌出时挂收盘价×0.95 保成交，无目标价概念，悬停出手价可见）。</div>
+      <table class="eval-table">
+        <thead><tr><th class="left">代码</th><th>买入价</th><th>股数</th><th>现价</th><th>盈亏</th><th>因子排名</th><th>建议</th><th>风险档</th><th>持有天数</th><th>建议出手价</th><th>理由</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// 默认放一行空白持仓便于录入
+addRow();
+
+const STAGE_TEXT = {
+  starting: '正在启动...', fetching: '抓取最新行情...', computing: '计算因子...',
+  training: '训练模型...', done: '完成', error: '出错', idle: '就绪'
+};
+
+let pollTimer = null;
+
+function setStatus(stage, msg) {
+  const el = document.getElementById('status');
+  el.textContent = (STAGE_TEXT[stage] || stage) + (msg ? '：' + msg : '');
+  el.className = 'status' + (stage === 'error' ? ' error' : (stage === 'done' || stage === 'idle' ? '' : ' active'));
+}
+
+async function retrain() {
+  const btn = document.getElementById('retrainBtn');
+  btn.disabled = true;
+  setStatus('starting', '');
+  try {
+    const r = await fetch('/api/retrain', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({fetch: true})
+    });
+    const j = await r.json();
+    if (!j.ok) { setStatus('error', j.msg); btn.disabled = false; return; }
+    pollTimer = setInterval(pollStatus, 2000);
+  } catch (e) {
+    setStatus('error', e); btn.disabled = false;
+  }
+}
+
+async function pollStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const s = await r.json();
+    setStatus(s.stage, s.msg);
+    if (!s.running && (s.stage === 'done' || s.stage === 'error')) {
+      clearInterval(pollTimer);
+      document.getElementById('retrainBtn').disabled = false;
+      if (s.stage === 'done') loadRecommend();
+    }
+  } catch (e) { /* 忽略单次轮询失败 */ }
+}
+
+// 页面加载时拉取已有推荐
+loadRecommend();
+</script>
+</body>
+</html>

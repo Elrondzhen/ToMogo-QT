@@ -1,0 +1,1 @@
+python C:\veighna_studio\Tools\i18n\msgfmt.py -o tomogoqt\trader\locale\en\LC_MESSAGES\tomogoqt.mo tomogoqt\trader\locale\en\LC_MESSAGES\tomogoqt
