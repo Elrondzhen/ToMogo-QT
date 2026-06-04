@@ -15,7 +15,7 @@
 
 ```
 ToMogo-QT/
-├── tomogoqt/                # 精简迁移的 tomogoqt.alpha 框架（alpha + trader 子集）
+├── tomogoqt/                #  tomogoqt.alpha 框架（alpha + trader 子集）
 ├── lab/demo/                # 数据中心：116只CSI300日线 / 模型(*.pkl) / 信号 / 名称缓存
 ├── scripts/fetch_to_lab.py  # baostock 取数脚本
 ├── pipeline.py              # 抓数→因子→训练→推荐→持仓评估 流程封装
@@ -97,7 +97,7 @@ pip install -r requirements.txt
 
 > 备注：`requirements.txt` 含 `torch`，Windows 默认从 PyPI 装 CPU 版即可，无需 CUDA。
 
-> macOS 本机已有可复用环境：`/Users/10298918/project/test2/vnpy/.venv-alpha`（pandas 2.x + 全部依赖 + flask + baostock），可直接用其 `bin/python` 启动，跳过上面建环境步骤。
+
 
 ---
 
@@ -109,7 +109,7 @@ pip install -r requirements.txt
 |------|------|
 | macOS / Linux | `python app.py` |
 | Windows | `python app.py` |
-| macOS 复用环境 | `/Users/10298918/project/test2/vnpy/.venv-alpha/bin/python app.py` |
+
 
 浏览器访问 **http://127.0.0.1:5000**
 
